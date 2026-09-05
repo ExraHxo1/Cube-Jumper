@@ -316,7 +316,7 @@ def draw_inventory(screen, font, selected_slot, inventory):
 
             idx += 1
 
-    hint = font.render("Click a slot • E to close", True, (220, 220, 220))
+    hint = font.render("Right click a slot • E to close", True, (220, 220, 220))
     screen.blit(hint, (panel.centerx - hint.get_width() // 2, panel.y + 60))
 
     return slots
