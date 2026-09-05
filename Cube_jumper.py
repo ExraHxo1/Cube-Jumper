@@ -30,9 +30,11 @@ COLOR_UNLOCKS = [
     ("Grey",(138, 138, 138),625),
     ("Yellow",(255, 200, 0),750),
     ("Orange",(255, 98, 0),1000),
+    ("Gold",(212, 175, 55),1250),
     ("Purple",(170, 60, 255),1500),
     ("Pink",(255, 0, 122),1750),
-    ("Black",(0, 0, 0,),2000),
+    ("Brown",(87, 66, 0),2000),
+    ("Black",(0, 0, 0,),2500),
 ]
 
 COLOR_BY_NAME = {name: rgb for (name, rgb, _) in COLOR_UNLOCKS}
@@ -45,11 +47,12 @@ COLOR_NAMES = [name for (name, _, _) in COLOR_UNLOCKS]
 show_controls = True
 show_live_score = False
 show_lvl = True
+DESPAWN_BUFFER = 900
 selected_color_name = "Red"
 unlocked_colors = {"Red"}
 
 def load_settings():
-    global show_controls, show_live_score, selected_color_name, unlocked_colors, show_lvl
+    global show_controls, show_live_score, selected_color_name, unlocked_colors, show_lvl, DESPAWN_BUFFER
     if os.path.exists(SETTINGS_FILE):
         try:
             with open(SETTINGS_FILE, "r") as f:
@@ -57,6 +60,7 @@ def load_settings():
             show_controls = bool(data.get("show_controls", True))
             show_live_score = bool(data.get("show_live_score", True))
             show_lvl = bool(data.get("show_lvl", True))
+            DESPAWN_BUFFER = int(data.get("despawn_buffer", 900))
             selected_color_name = str(data.get("selected_color", "Red"))
             if selected_color_name not in COLOR_BY_NAME:
                 selected_color_name = "Red"
@@ -80,6 +84,7 @@ def save_settings():
             "show_live_score": show_live_score,
             "selected_color": selected_color_name,
             "unlocked_colors": sorted(list(unlocked_colors), key=lambda n: COLOR_NAMES.index(n)),
+            "despawn_buffer": DESPAWN_BUFFER,
             }
         with open(SETTINGS_FILE, "w") as f:
             json.dump(data, f, indent=2)
@@ -391,8 +396,11 @@ settings_btn = pygame.Rect(btn_x, 420, btn_w, btn_h)
 customize_btn = pygame.Rect(btn_x, 500, btn_w, btn_h)
 quit_btn = pygame.Rect(btn_x, 580, btn_w, btn_h)
 toggle_controls_btn = pygame.Rect(btn_x, 300, btn_w, btn_h)
-back_btn = pygame.Rect(btn_x, 540, btn_w, btn_h)
+back_btn = pygame.Rect(btn_x, 620, btn_w, btn_h)
 toggle_lvl_btn = pygame.Rect(btn_x, 460, btn_w, btn_h)
+despawn_input_btn = pygame.Rect(btn_x, 540, btn_w, btn_h)
+despawn_input_active = False
+despawn_text = str(DESPAWN_BUFFER)
 in_settings = False
 in_customize = False
 toggle_live_score_btn = pygame.Rect(btn_x, 380, btn_w, btn_h)
@@ -405,8 +413,8 @@ cust_index = COLOR_NAMES.index(selected_color_name) if selected_color_name in CO
 # Game over
 game_over = False
 new_high = False
-dead = True  # True => shows "YOU DIED" (ground death). False => shows "GAME OVER"
-fell = False # True => shows "YOU FELL" (ground death). False => shows "GAME OVER"
+dead = True
+fell = False
 
 # PLAYER
 player = pygame.Rect(50, 300, 40, 40)
@@ -577,7 +585,6 @@ def apply_difficulty_for_score(s: int):
     return level
 
 GEN_BUFFER = 900
-DESPAWN_BUFFER = 900
 
 def build_start_platforms():
     global platforms, highest_plat_y, last_plat_x
@@ -729,8 +736,12 @@ while True:
                 elif toggle_lvl_btn.collidepoint(mx, my):
                     show_lvl = not show_lvl
                     save_settings()
+                elif despawn_input_btn.collidepoint(mx, my):
+                    despawn_input_active = True
                 elif back_btn.collidepoint(mx, my):
                     in_settings = False
+                if not despawn_input_btn.collidepoint(mx, my):
+                    despawn_input_active = False
             elif in_customize:
                 if cust_prev_btn.collidepoint(mx, my):
                     cust_index = (cust_index - 1) % len(COLOR_NAMES)
@@ -773,6 +784,19 @@ while True:
 
         # Key presses
         if event.type == pygame.KEYDOWN:
+            if paused and in_settings and despawn_input_active:
+                if event.key == pygame.K_BACKSPACE:
+                    despawn_text = despawn_text[:-1]
+                elif event.key == pygame.K_RETURN:
+                    despawn_input_active = False
+                elif event.unicode.isnumeric():
+                    if len(despawn_text) <6:
+                        despawn_text += event.unicode
+                if despawn_text != "":
+                    DESPAWN_BUFFER = int(despawn_text)
+                else:
+                    DESPAWN_BUFFER = 0
+                save_settings()
             if event.key == pygame.K_F11:
                 fullscreen = not fullscreen
                 if fullscreen:
@@ -899,6 +923,14 @@ while True:
             draw_button(screen, toggle_live_score_btn, f"Live Score: {ls_status}", mouse_pos, font)
             lvl_status = "ON" if show_lvl else "OFF"
             draw_button(screen, toggle_lvl_btn, f"Level: {lvl_status}", mouse_pos, font)
+            box_color = (130, 130, 130) if despawn_input_active else (70, 70, 70)
+            pygame.draw.rect(screen, box_color, despawn_input_btn, border_radius=10)
+            pygame.draw.rect(screen, (255, 255, 255), despawn_input_btn, 2, border_radius=10)
+            display_str = f"Despawn: {despawn_text}"
+            if despawn_input_active:
+                display_str += "|"
+            label = font.render(display_str, True, (255, 255, 255))
+            screen.blit(label, (despawn_input_btn.centerx - label.get_width() // 2, despawn_input_btn.centery - label.get_height() // 2))
             draw_button(screen, back_btn, "Back", mouse_pos, font)
         elif in_customize:
             title = big_font.render("CUSTOMIZATION", True, (255, 255, 255))

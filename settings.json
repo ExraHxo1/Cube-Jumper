@@ -14,5 +14,6 @@
     "Yellow",
     "Orange",
     "Purple"
-  ]
+  ],
+  "despawn_buffer": 999999
 }

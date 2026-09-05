@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['Cube_jumper.py'],
+    ['cube_jumper.py'],
     pathex=[],
     binaries=[],
     datas=[('assets', 'assets'), ('cube_jumper.png', '.')],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='Cube_Jumper',
+    name='cube_jumper',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

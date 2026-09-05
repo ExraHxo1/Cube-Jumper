@@ -1,12 +1,20 @@
 {
   "show_lvl": true,
-  "show_controls": true,
+  "show_controls": false,
   "show_live_score": true,
-  "selected_color": "Blue",
+  "selected_color": "Black",
   "unlocked_colors": [
     "Red",
-    "Blue",
-    "Green",
-    "Yellow"
+    "Light Blue",
+    "Dark Blue",
+    "Light Green",
+    "Dark Green",
+    "White",
+    "Grey",
+    "Yellow",
+    "Orange",
+    "Purple",
+    "Pink",
+    "Black"
   ]
 }
