@@ -1,0 +1,11 @@
+{
+  "show_lvl": true,
+  "show_controls": true,
+  "show_live_score": true,
+  "selected_color": "Red",
+  "unlocked_colors": [
+    "Red",
+    "Blue",
+    "Green"
+  ]
+}
