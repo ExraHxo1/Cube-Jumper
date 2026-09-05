@@ -124,10 +124,12 @@ def save_high_score(value):
 pygame.init()
 load_settings()
 
-# Window setup
+# Window
 WIDTH, HEIGHT = 1800, 900
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("CUBE JUMPER")
+window = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
+screen = pygame.Surface((WIDTH, HEIGHT))
+pygame.display.set_caption("CUBE JUMPER!")
+fullscreen = False
 
 icon = pygame.image.load(resource_path("cube_jumper.png")).convert_alpha()
 pygame.display.set_icon(icon)
@@ -215,13 +217,6 @@ context_action = None
 context_rect = pygame.Rect(0, 0, 220, 120)
 context_use_btn = pygame.Rect(0, 0, 180, 50)
 context_close_btn = pygame.Rect(0, 0, 180, 40)
-inventory[0] = {}
-inventory[1] = {}
-inventory[2] = {}
-inventory[3] = {}
-inventory[4] = {}
-inventory[5] = {}
-inventory[6] = {}
 ITEM_ICONS = {
 "Plank": PLANK_ICON,
 "Apple": APPLE_ICON,
@@ -530,8 +525,8 @@ def spawn_town_at_score(s: int):
 
         houses.append({"x": x, "y": y, "surf": house_surf, "w": hw, "h": hh})
 
-    item_spawn_chance = 0.75
-    if random.random() < item_spawn_chance:
+    num_items = random.randint(1, 2)
+    for _ in range(num_items):
         item_name = random.choice(VILLAGE_LOOT_POOL)
         item_icon = ITEM_ICONS.get(item_name)
         item_w, item_h = (32, 32)
@@ -644,7 +639,7 @@ def reset_survival_timer():
 
 def restart_game():
     global player, player_vel_y, on_ground, move_dir, camera_y, last_dash_time, armed, in_customize, food, last_stat_tick, houses, fall_peak_y
-    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score
+    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score, world_items
 
     player.x, player.y = 50, 300
     player_vel_y = 0
@@ -670,6 +665,7 @@ def restart_game():
     houses = []
     next_town_score = TOWN_SCORE_STEP
     fall_peak_y = None
+    world_items = []
     build_start_platforms()
 
 # =========================
@@ -716,7 +712,9 @@ while True:
 
         # Pause menu clicks
         if paused and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mx, my = event.pos
+            current_w, current_h = window.get_size()
+            mx = int(event.pos[0] * (WIDTH / current_w))
+            my = int(event.pos[1] * (HEIGHT / current_h))
             if in_settings:
                 if toggle_controls_btn.collidepoint(mx, my):
                     show_controls = not show_controls
@@ -760,7 +758,9 @@ while True:
 
         # Game over clicks
         if game_over and event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-            mx, my = event.pos
+            current_w, current_h = window.get_size()
+            mx = int(event.pos[0] * (WIDTH / current_w))
+            my = int(event.pos[1] * (HEIGHT / current_h))
             if restart_btn.collidepoint(mx, my):
                 restart_game()
             elif quit_btn.collidepoint(mx, my):
@@ -769,6 +769,12 @@ while True:
 
         # Key presses
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_F11:
+                fullscreen = not fullscreen
+                if fullscreen:
+                    window = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
+                else:
+                    window = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
             if event.key == pygame.K_e and (not game_over) and (not paused):
                 inventory_open = not inventory_open
             if event.key == pygame.K_ESCAPE and not game_over:
@@ -790,7 +796,7 @@ while True:
                     reset_survival_timer()
 
             # Dash
-            if event.key in (pygame.K_q, pygame.K_RCTRL) and not game_over and not paused and not inventory_open:
+            if event.key in (pygame.K_LSHIFT, pygame.K_RCTRL) and not game_over and not paused and not inventory_open:
                 current_time = pygame.time.get_ticks()
                 if current_time - last_dash_time >= dash_cooldown:
                     dash_dx = dash_speed * move_dir
@@ -818,6 +824,13 @@ while True:
         for h in houses:
             screen.blit(h["surf"], (h["x"], h["y"] - camera_y))
 
+        for item in world_items:
+            draw_rect = pygame.Rect(item["rect"].x, item["rect"].y - camera_y, item["rect"].width, item["rect"].height)
+            if item["icon"]:
+                screen.blit(item["icon"], draw_rect.topleft)
+            else:
+                pygame.draw.rect(screen, (255, 215, 0), draw_rect)
+
         pygame.draw.rect(
             screen,
             COLOR_BY_NAME.get(selected_color_name, (255, 0, 0)),
@@ -828,8 +841,12 @@ while True:
         overlay.fill((0, 0, 0, 160))
         screen.blit(overlay, (0, 0))
 
-        mouse_pos = pygame.mouse.get_pos()
-
+        current_w, current_h = window.get_size()
+        raw_mx, raw_my = pygame.mouse.get_pos()
+        mx = int(raw_mx * (WIDTH / current_w))
+        my = int(raw_my * HEIGHT / current_h)
+        mouse_pos = (mx, my)
+        
         if in_settings:
             title = big_font.render("SETTINGS", True, (255, 255, 255))
             screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 160))
@@ -875,6 +892,9 @@ while True:
             draw_button(screen, customize_btn, "Customization", mouse_pos, font)
 
         reset_survival_timer()
+        current_w, current_h = window.get_size()
+        scaled_surface = pygame.transform.smoothscale(screen, (current_w, current_h))
+        window.blit(scaled_surface, (0, 0))
         pygame.display.update()
         clock.tick(60)
         continue
@@ -897,8 +917,11 @@ while True:
         overlay.fill((0, 0, 0, 180))
         screen.blit(overlay, (0, 0))
 
-        mouse_pos = pygame.mouse.get_pos()
-
+        current_w, current_h = window.get_size()
+        raw_mx, raw_my = pygame.mouse.get_pos()
+        mx = int(raw_mx * (WIDTH / current_w))
+        my = int(raw_my * HEIGHT / current_h)
+        mouse_pos = (mx, my)
         if fell:
             title_text = "YOU FELL FROM TOO HIGH"
         elif dead:
@@ -919,7 +942,12 @@ while True:
 
         draw_button(screen, restart_btn, "Restart", mouse_pos, font)
         draw_button(screen, quit_btn, "Quit", mouse_pos, font)
-
+        current_w, current_h = window.get_size()
+        raw_mx, raw_my = pygame.mouse.get_pos()
+        mx = int(raw_mx * (WIDTH / current_w))
+        my = int(raw_my * (HEIGHT / current_h))
+        scaled_surface=pygame.transform.smoothscale(screen, (current_w, current_h))
+        window.blit(scaled_surface, (0, 0))
         pygame.display.update()
         clock.tick(60)
         continue
@@ -996,6 +1024,20 @@ while True:
 
         x = random.randint(min_x, max_x)
         platforms.append(pygame.Rect(x, y, w, PLAT_H))
+
+        if random.random() < 0.01:
+            item_name = random.choice(VILLAGE_LOOT_POOL)
+            item_icon = ITEM_ICONS.get(item_name)
+            item_w, item_h = (32, 32)
+            if item_icon:
+                item_icon = pygame.transform.smoothscale(item_icon, (32, 32))
+            item_x = x + (w // 2) - (item_w // 2)
+            item_y = y - item_h
+            world_items.append({
+                "name": item_name,
+                "rect": pygame.Rect(item_x, item_y, item_w, item_h),
+                "icon": item_icon
+            })
 
         highest_plat_y = y
         last_plat_x = x
@@ -1163,7 +1205,10 @@ while True:
     if inventory_open:
         inv_slots_rects = draw_inventory(screen, font, selected_slot, inventory)
 
-        mx, my = pygame.mouse.get_pos()
+        current_w, current_h = window.get_size()
+        raw_mx, raw_my = pygame.mouse.get_pos()
+        mx = int(raw_mx * (WIDTH / current_w))
+        my = int(raw_my * (HEIGHT / current_h))
         hover = None
         for i, r in enumerate(inv_slots_rects):
             if r.collidepoint(mx, my):
@@ -1176,7 +1221,7 @@ while True:
             "A/<-: move left",
             "D/->: move right",
             "SPACE/W/^: jump",
-            "Q/R CTRL: dash",
+            "L SHIFT/R CTRL: dash",
             "E: inventory",
             "ESC: pause menu",
         ]
@@ -1190,6 +1235,10 @@ while True:
         seconds_left = dash_remaining / 1000
         dash_text = font.render(f"{seconds_left:.1f}", True, (0, 0, 0))
         screen.blit(dash_text, (player.centerx - 15, player.top - camera_y - 20))
+
+    current_w, current_h = window.get_size()
+    scaled_surface = pygame.transform.smoothscale(screen, (current_w, current_h))
+    window.blit(scaled_surface, (0, 0))
 
     pygame.display.update()
     clock.tick(60)
