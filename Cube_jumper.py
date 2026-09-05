@@ -201,26 +201,33 @@ APPLE_ICON = load_icon("apple.png")
 # =========================
 # Inventory
 # =========================
+world_items = []
 inventory_open = False
 INVENTORY_SLOTS = 9
 inventory = [None] * INVENTORY_SLOTS
 selected_slot = 0
 inv_slots_rects = []
 context_open = False
+VILLAGE_LOOT_POOL = ["Apple", "Water Bottle", "Meat"]
 context_slot = None
 context_item_name = None
 context_action = None
 context_rect = pygame.Rect(0, 0, 220, 120)
 context_use_btn = pygame.Rect(0, 0, 180, 50)
 context_close_btn = pygame.Rect(0, 0, 180, 40)
-inventory[0] = {"name": "Plank", "count": 1}
-inventory[1] = {"name": "Metal Pipe", "count": 1}
-inventory[2] = {"name": "Rock", "count": 2}
-inventory[3] = {"name": "Stick", "count": 2}
-inventory[4] = {"name": "Water Bottle", "count": 1}
-inventory[5] = {"name": "Meat", "count": 1}
-inventory[6] = {"name": "Apple", "count": 2}
-
+inventory[0] = {}
+inventory[1] = {}
+inventory[2] = {}
+inventory[3] = {}
+inventory[4] = {}
+inventory[5] = {}
+inventory[6] = {}
+ITEM_ICONS = {
+"Plank": PLANK_ICON,
+"Apple": APPLE_ICON,
+"Meat": MEAT_ICON,
+"Water Bottle": WATER_BOTTLE_ICON,
+}
 def draw_inventory(screen, font, selected_slot, inventory):
     overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay.fill((0, 0, 0, 160))
@@ -481,7 +488,7 @@ def make_house_surface(style: int = 0) -> pygame.Surface:
 
 
 def spawn_town_at_score(s: int):
-    global town_platforms, houses
+    global town_platforms, houses, world_items
 
     town_top_y = ground.top - (s * 10)  # world Y where this town platform sits
     plat = pygame.Rect(0, town_top_y, TOWN_PLAT_W, TOWN_PLAT_H)
@@ -523,6 +530,21 @@ def spawn_town_at_score(s: int):
 
         houses.append({"x": x, "y": y, "surf": house_surf, "w": hw, "h": hh})
 
+    item_spawn_chance = 0.75
+    if random.random() < item_spawn_chance:
+        item_name = random.choice(VILLAGE_LOOT_POOL)
+        item_icon = ITEM_ICONS.get(item_name)
+        item_w, item_h = (32, 32)
+        if item_icon:
+            item_icon = pygame.transform.smoothscale(item_icon, (32, 32))
+        spawn_x = random.randint(60, WIDTH - 60 - item_w)
+        spawn_y = plat.top - item_h
+        world_items.append({
+            "name": item_name,
+            "rect": pygame.Rect(spawn_x, spawn_y, item_w, item_h),
+            "icon": item_icon
+        })
+
 MAX_PLAT_DX = MAX_PLAT_DX_BASE
 PLAT_MIN_W = PLAT_MIN_W_BASE
 PLAT_MAX_W = PLAT_MAX_W_BASE
@@ -536,10 +558,6 @@ def get_level_from_score(s: int) -> int:
     return max(1, min(MAX_LEVEL, (s // LEVEL_SCORE_STEP) + 1))
 
 def apply_difficulty_for_score(s: int):
-    """
-    Updates platform generation params based on score.
-    Smaller platforms + bigger gaps as level rises.
-    """
     global MAX_PLAT_DX, PLAT_MIN_W, PLAT_MAX_W, GAP_MIN_Y, GAP_MAX_Y
     level = get_level_from_score(s)
     t = (level - 1) / (MAX_LEVEL - 1)
@@ -985,6 +1003,7 @@ while True:
     # Remove platforms below camera
     platforms = [p for p in platforms if p.y - camera_y < HEIGHT + DESPAWN_BUFFER]
     town_platforms = [p for p in town_platforms if p.y - camera_y < HEIGHT + DESPAWN_BUFFER]
+    world_items = [it for it in world_items if (it["rect"].y - camera_y) <HEIGHT + DESPAWN_BUFFER]
 
     houses = [
         h for h in houses
@@ -1035,6 +1054,11 @@ while True:
 
     if DEBUG_LAND_PRINTS and just_landed:
         print("JUST LANDED ON:", "GROUND" if landed_on is ground else "PLATFORM", "score:", score)
+
+    for item in world_items[:]:
+        if player.colliderect(item["rect"]):
+            if add_item_to_inventory(item["name"], 1):
+                world_items.remove(item)
 
     # =========================
     # Death rules
@@ -1089,6 +1113,13 @@ while True:
         COLOR_BY_NAME.get(selected_color_name, (255, 0, 0)),
         pygame.Rect(player.x, player.y - camera_y, player.width, player.height)
     )
+
+    for item in world_items:
+        draw_rect = pygame.Rect(item["rect"].x, item["rect"].y - camera_y, item["rect"].width, item["rect"].height)
+        if item["icon"]:
+            screen.blit(item["icon"], draw_rect.topleft)
+        else:
+            pygame.draw.rect(screen, (255, 215, 0), draw_rect)
 
     # Survival HUD
     BAR_W = 260
