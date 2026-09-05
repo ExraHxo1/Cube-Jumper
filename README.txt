@@ -1,0 +1,1 @@
+hi! some of this codeing was made with ai, but most of it was made by humans, I was just learning how to code python and this was my first project. I have now later added onto it without the use of AI.
