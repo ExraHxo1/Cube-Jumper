@@ -662,10 +662,6 @@ def restart_game():
     houses = []
     next_town_score = TOWN_SCORE_STEP
     fall_peak_y = None
-
-    # keep loaded high score
-    # high_score remains whatever is saved/loaded
-
     build_start_platforms()
 
 # =========================
@@ -1176,5 +1172,3 @@ while True:
 
     pygame.display.update()
     clock.tick(60)
-
-# py -m PyInstaller --noconfirm --clean --onefile --windowed --name "Cube_Jumper" --icon "cube_jumper.ico" --add-data "assets;assets" --add-data "cube_jumper.png;." Cube_jumper.py
