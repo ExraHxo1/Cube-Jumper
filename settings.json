@@ -2,10 +2,11 @@
   "show_lvl": true,
   "show_controls": true,
   "show_live_score": true,
-  "selected_color": "Red",
+  "selected_color": "White",
   "unlocked_colors": [
     "Red",
     "Blue",
-    "Green"
+    "Green",
+    "White"
   ]
 }

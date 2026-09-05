@@ -8,17 +8,14 @@ def resource_path(*parts):
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, *parts)
 
-# =========================
-# Settings / Flags
-# =========================
 SETTINGS_FILE = "settings.json"
 HIGHSCORE_FILE = "highscore.txt"
-DEATH_SCORE_THRESHOLD = 55          # die when you land on GROUND at/above this score
+DEATH_SCORE_THRESHOLD = 55
 armed = False
 ARM_SCORE = 55
 KILL_SCORE = 1
-FALL_DEATH_ENABLED = True           # keep old "fell too far" death
-DEBUG_LAND_PRINTS = False           # set True if you want terminal prints for landings
+FALL_DEATH_ENABLED = True
+DEBUG_LAND_PRINTS = False
 
 # =========================
 # Color unlocks
@@ -27,8 +24,10 @@ COLOR_UNLOCKS = [
     ("Red",     (255, 0, 0),    0),
     ("Blue",    (0, 120, 255),  150),
     ("Green",   (0, 200, 80),   300),
+    ("White",   (255, 255, 255),      500),
     ("Yellow",  (255, 200, 0),  750),
     ("Purple",  (170, 60, 255), 1500),
+    ("Black",   (0, 0, 0,),2000),
 ]
 
 COLOR_BY_NAME = {name: rgb for (name, rgb, _) in COLOR_UNLOCKS}
@@ -458,10 +457,6 @@ houses = []                    # list[dict]: {"x","y","surf","w","h"}
 next_town_score = TOWN_SCORE_STEP
 
 def make_house_surface(style: int = 0) -> pygame.Surface:
-    """
-    This is where YOU 'draw the house yourself' using pygame shapes.
-    Later you can replace this with loading a PNG you drew in an art app.
-    """
     w, h = 120, 110
     surf = pygame.Surface((w, h), pygame.SRCALPHA)
 
@@ -486,11 +481,6 @@ def make_house_surface(style: int = 0) -> pygame.Surface:
 
 
 def spawn_town_at_score(s: int):
-    """
-    Spawns a big platform and several houses on it.
-    Your score formula is: score = int((ground.top - best_y) / 10)
-    => y in world space for a given score is: y = ground.top - score*10
-    """
     global town_platforms, houses
 
     town_top_y = ground.top - (s * 10)  # world Y where this town platform sits
