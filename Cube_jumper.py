@@ -185,10 +185,6 @@ if os.path.isdir(HOUSE_DIR):
                 HOUSE_IMAGES.append(img)
             except Exception as e:
                 print(f"WARNING: Failed to load {path}: {e}")
-
-if not HOUSE_IMAGES:
-    print("WARNING: No house PNGs found in assets/houses/")
-
 # =========================
 # Item icons
 # =========================
@@ -209,6 +205,7 @@ STICK_ICON = load_icon("stick.png")
 WATER_BOTTLE_ICON = load_icon("water_bottle.png")
 MEAT_ICON = load_icon("meat.png")
 APPLE_ICON = load_icon("apple.png")
+BANDAGE_ICON = load_icon("bandage.png")
 
 # =========================
 # Inventory
@@ -220,7 +217,7 @@ inventory = [None] * INVENTORY_SLOTS
 selected_slot = 0
 inv_slots_rects = []
 context_open = False
-VILLAGE_LOOT_POOL = ["Apple", "Water Bottle", "Meat"]
+VILLAGE_LOOT_POOL = ["Apple", "Meat", "Bandage"]
 context_slot = None
 context_item_name = None
 context_action = None
@@ -229,6 +226,7 @@ context_use_btn = pygame.Rect(0, 0, 180, 40)
 context_close_btn = pygame.Rect(0, 0, 180, 40)
 context_drop_btn = pygame.Rect(0, 0, 180, 40)
 ITEM_ICONS = {
+"Bandage": BANDAGE_ICON,
 "Plank": PLANK_ICON,
 "Apple": APPLE_ICON,
 "Meat": MEAT_ICON,
@@ -291,6 +289,8 @@ def draw_inventory(screen, font, selected_slot, inventory):
                     icon = MEAT_ICON
                 elif name == "Apple":
                     icon = APPLE_ICON
+                elif name ==  "Bandage":
+                    icon = BANDAGE_ICON
 
                 if icon:
                     pad = 14
@@ -299,7 +299,7 @@ def draw_inventory(screen, font, selected_slot, inventory):
                     iw, ih = icon.get_size()
                     scale = min(target / iw, target / ih)
                     nw, nh = max(1, int(iw * scale)), max(1, int(ih * scale))
-                    icon_s = pygame.transform.smoothscale(icon, (nw, nh))
+                    icon_s = pygame.transform.scale(icon, (nw, nh))
 
                     icon_y = rect.y + 10
                     screen.blit(icon_s, (rect.centerx - nw // 2, icon_y))
@@ -331,11 +331,10 @@ ITEM_DEFS = {
     "Metal Pipe": {"stackable": False},
     "Water Bottle": {"stackable": False},
     "Meat": {"stackable": False},
-
-    # stackables
     "Stick": {"stackable": True, "max_stack": 8},
     "Rock": {"stackable": True, "max_stack": 8},
     "Apple": {"stackable": True, "max_stack": 8},
+    "Bandage":{"stackable": True, "max_stack": 4},
 }
 
 def add_item_to_inventory(item_name: str, amount: int = 1) -> bool:
@@ -543,7 +542,7 @@ def spawn_town_at_score(s: int):
         item_icon = ITEM_ICONS.get(item_name)
         item_w, item_h = (32, 32)
         if item_icon:
-            item_icon = pygame.transform.smoothscale(item_icon, (32, 32))
+            item_icon = pygame.transform.scale(item_icon, (32, 32))
         spawn_x = random.randint(60, WIDTH - 60 - item_w)
         spawn_y = plat.top - item_h
         world_items.append({
@@ -844,6 +843,8 @@ while True:
                     name = item.get("name") if isinstance(item, dict) else str(item)              
                     if name in ["Meat"]:
                         food = min(MAX_STAT, food + 10)
+                    elif name == "Bandage":
+                        health = min(MAX_STAT, health + 35)
                     elif name in ["Apple"]:
                         food = min(MAX_STAT, food + 5)
                     elif name in ["Water Bottle"]:
@@ -1099,12 +1100,12 @@ while True:
         x = random.randint(min_x, max_x)
         platforms.append(pygame.Rect(x, y, w, PLAT_H))
 
-        if random.random() < 0.025:
+        if random.random() < 0.04:
             item_name = "Water Bottle"
             item_icon = ITEM_ICONS.get(item_name)
             item_w, item_h = (32, 32)
             if item_icon:
-                item_icon = pygame.transform.smoothscale(item_icon, (32, 32))
+                item_icon = pygame.transform.scale(item_icon, (32, 32))
             item_x = x + (w // 2) - (item_w // 2)
             item_y = y - item_h
             world_items.append({
@@ -1323,3 +1324,4 @@ while True:
 
     pygame.display.update()
     clock.tick(60)
+    # py -m PyInstaller --noconsole --onefile --icon="cube_jumper.ico" --add-data "assets;assets" --add-data "cube_jumper.png;." cube_jumper.py

@@ -16,5 +16,6 @@
     "Purple",
     "Pink",
     "Black"
-  ]
+  ],
+  "despawn_buffer": 999999
 }

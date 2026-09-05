@@ -13,7 +13,10 @@
     "Grey",
     "Yellow",
     "Orange",
-    "Purple"
+    "Gold",
+    "Purple",
+    "Pink",
+    "Brown"
   ],
   "despawn_buffer": 999999
 }
