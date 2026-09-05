@@ -220,8 +220,9 @@ context_slot = None
 context_item_name = None
 context_action = None
 context_rect = pygame.Rect(0, 0, 220, 120)
-context_use_btn = pygame.Rect(0, 0, 180, 50)
+context_use_btn = pygame.Rect(0, 0, 180, 40)
 context_close_btn = pygame.Rect(0, 0, 180, 40)
+context_drop_btn = pygame.Rect(0, 0, 180, 40)
 ITEM_ICONS = {
 "Plank": PLANK_ICON,
 "Apple": APPLE_ICON,
@@ -505,8 +506,6 @@ def spawn_town_at_score(s: int):
     }
     n = random.choices(list(weights.keys()), weights=list(weights.values()), k=1)[0]
 
-
-    # simple spacing so houses don't overlap
     margin = 40
     usable_w = TOWN_PLAT_W - 2 * margin
     if n > 0:
@@ -530,7 +529,7 @@ def spawn_town_at_score(s: int):
 
         houses.append({"x": x, "y": y, "surf": house_surf, "w": hw, "h": hh})
 
-    num_items = random.randint(1, 2)
+    num_items = random.randint(2, 4)
     for _ in range(num_items):
         item_name = random.choice(VILLAGE_LOOT_POOL)
         item_icon = ITEM_ICONS.get(item_name)
@@ -800,14 +799,52 @@ while True:
                     in_customize = False
                     reset_survival_timer()
 
-            # Dash
-            if event.key in (pygame.K_LSHIFT, pygame.K_RCTRL) and not game_over and not paused and not inventory_open:
-                current_time = pygame.time.get_ticks()
-                if current_time - last_dash_time >= dash_cooldown:
-                    dash_dx = dash_speed * move_dir
-                    # move_and_collide returns 3 values now, but we don't need them for dash
-                    move_and_collide(player, dash_dx, 0, platforms + [ground])
-                    last_dash_time = current_time
+        if event.type == pygame.MOUSEBUTTONDOWN and inventory_open:
+            current_w, current_h = window.get_size()
+            mx = int(event.pos[0] * (WIDTH / current_w))
+            my = int(event.pos[1] * (HEIGHT / current_h))                  
+            if not context_open:
+                if event.button == 3:
+                    for i, r in enumerate(inv_slots_rects):
+                        if r.collidepoint(mx, my) and inventory[i] is not None:
+                            context_open = True
+                            context_slot = i
+                            context_rect = pygame.Rect(mx, my, 200, 170)                        
+                            context_use_btn.topleft = (mx + 10, my + 10)
+                            context_drop_btn.topleft = (mx + 10, my + 60)
+                            context_close_btn.topleft = (mx + 10, my + 110)
+                            break
+            elif context_open and event.button == 1:
+                if context_use_btn.collidepoint(mx, my):
+                    item = inventory[context_slot]
+                    name = item.get("name") if isinstance(item, dict) else str(item)              
+                    if name in ["Meat"]:
+                        food = min(MAX_STAT, food + 10)
+                    elif name in ["Apple"]:
+                        food = min(MAX_STAT, food + 5)
+                    elif name in ["Water Bottle"]:
+                        water = min(MAX_STAT, water + 15)            
+                    if isinstance(item, dict):
+                        item["count"] -= 1
+                        if item["count"] <= 0: inventory[context_slot] = None
+                    else: inventory[context_slot] = None
+                    context_open = False
+                elif context_drop_btn.collidepoint(mx, my):
+                    item = inventory[context_slot]
+                    if isinstance(item, dict):
+                        item["count"] -= 1
+                        if item["count"] <= 0: inventory[context_slot] = None
+                    else: inventory[context_slot] = None
+                    context_open = False        
+                else:
+                    context_open = False
+                continue
+        if event.type == pygame.KEYDOWN and event.key in (pygame.K_LSHIFT, pygame.K_RCTRL) and not game_over and not paused and not inventory_open:
+            current_time = pygame.time.get_ticks()
+            if current_time - last_dash_time >= dash_cooldown:
+                dash_dx = dash_speed * move_dir
+                move_and_collide(player, dash_dx, 0, platforms + [ground])
+                last_dash_time = current_time
 
     keys = pygame.key.get_pressed()
 
@@ -1030,8 +1067,8 @@ while True:
         x = random.randint(min_x, max_x)
         platforms.append(pygame.Rect(x, y, w, PLAT_H))
 
-        if random.random() < 0.01:
-            item_name = random.choice(VILLAGE_LOOT_POOL)
+        if random.random() < 0.025:
+            item_name = "Water Bottle"
             item_icon = ITEM_ICONS.get(item_name)
             item_w, item_h = (32, 32)
             if item_icon:
@@ -1220,6 +1257,13 @@ while True:
                 hover = i
                 break
         selected_slot = hover
+        if context_open:
+            pygame.draw.rect(screen, (40, 40, 40), context_rect, border_radius=8)
+            pygame.draw.rect(screen, (200, 200, 200), context_rect, 2, border_radius=8)
+            mouse_pos = (mx, my)
+            draw_button(screen, context_use_btn, "Consume", mouse_pos, small_font)
+            draw_button(screen, context_drop_btn, "Drop", mouse_pos, small_font)
+            draw_button(screen, context_close_btn, "Cancel", mouse_pos, small_font)
 
     if show_controls:
         controls = [

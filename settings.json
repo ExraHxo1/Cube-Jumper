@@ -5,9 +5,14 @@
   "selected_color": "White",
   "unlocked_colors": [
     "Red",
-    "Blue",
-    "Green",
+    "Light Blue",
+    "Dark Blue",
+    "Light Green",
+    "Dark Green",
     "White",
-    "Yellow"
+    "Grey",
+    "Yellow",
+    "Orange",
+    "Purple"
   ]
 }
