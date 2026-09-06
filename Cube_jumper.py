@@ -16,6 +16,7 @@ ARM_SCORE = 55
 KILL_SCORE = 1
 FALL_DEATH_ENABLED = True
 DEBUG_LAND_PRINTS = False
+parachute_deployed = False
 
 # =========================
 # Color unlocks
@@ -47,7 +48,7 @@ COLOR_NAMES = [name for (name, _, _) in COLOR_UNLOCKS]
 show_controls = True
 show_live_score = False
 show_lvl = True
-DESPAWN_BUFFER = 900
+DESPAWN_BUFFER = 100000
 selected_color_name = "Red"
 unlocked_colors = {"Red"}
 
@@ -206,6 +207,7 @@ WATER_BOTTLE_ICON = load_icon("water_bottle.png")
 MEAT_ICON = load_icon("meat.png")
 APPLE_ICON = load_icon("apple.png")
 BANDAGE_ICON = load_icon("bandage.png")
+PARACHUTE_ICON = load_icon("parachute.png")
 
 # =========================
 # Inventory
@@ -217,7 +219,7 @@ inventory = [None] * INVENTORY_SLOTS
 selected_slot = 0
 inv_slots_rects = []
 context_open = False
-VILLAGE_LOOT_POOL = ["Apple", "Meat", "Bandage"]
+VILLAGE_LOOT_POOL = ["Apple", "Meat", "Bandage", "Parachute"]
 context_slot = None
 context_item_name = None
 context_action = None
@@ -226,6 +228,7 @@ context_use_btn = pygame.Rect(0, 0, 180, 40)
 context_close_btn = pygame.Rect(0, 0, 180, 40)
 context_drop_btn = pygame.Rect(0, 0, 180, 40)
 ITEM_ICONS = {
+"Parachute": PARACHUTE_ICON,
 "Bandage": BANDAGE_ICON,
 "Plank": PLANK_ICON,
 "Apple": APPLE_ICON,
@@ -291,6 +294,8 @@ def draw_inventory(screen, font, selected_slot, inventory):
                     icon = APPLE_ICON
                 elif name ==  "Bandage":
                     icon = BANDAGE_ICON
+                elif name == "Parachute":
+                    icon = PARACHUTE_ICON
 
                 if icon:
                     pad = 14
@@ -331,6 +336,7 @@ ITEM_DEFS = {
     "Metal Pipe": {"stackable": False},
     "Water Bottle": {"stackable": False},
     "Meat": {"stackable": False},
+    "Parachute": {"stackable": False},
     "Stick": {"stackable": True, "max_stack": 8},
     "Rock": {"stackable": True, "max_stack": 8},
     "Apple": {"stackable": True, "max_stack": 8},
@@ -453,7 +459,7 @@ last_plat_x = WIDTH // 2
 MAX_PLAT_DX_BASE = 320
 EDGE_MARGIN = 20
 PLAT_MIN_W_BASE = 170
-PLAT_MAX_W_BASE = 220
+PLAT_MAX_W_BASE = 210
 PLAT_H = 20
 GAP_MIN_Y_BASE = 80
 GAP_MAX_Y_BASE = 100
@@ -783,6 +789,18 @@ while True:
 
         # Key presses
         if event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_f and not on_ground and not parachute_deployed:
+                for i in range(len(inventory)):
+                    item = inventory[i]
+                    if item is not None:
+                        name = item.get("name") if isinstance(item, dict) else str(item)
+                        if name == "Parachute":
+                            parachute_deployed = True
+                            if isinstance(item, dict):
+                                item["count"] -= 1
+                                if item["count"] <= 0: inventory[i] = None
+                            else: inventory[i] = None
+                            break
             if paused and in_settings and despawn_input_active:
                 if event.key == pygame.K_BACKSPACE:
                     despawn_text = despawn_text[:-1]
@@ -1140,6 +1158,8 @@ while True:
 
     # Gravity
     player_vel_y += gravity
+    if parachute_deployed and player_vel_y > 2:
+        player_vel_y = 2
     dy = player_vel_y
 
     # =========================
@@ -1148,7 +1168,9 @@ while True:
     was_on_ground = on_ground
     player_vel_y, on_ground, landed_on = move_and_collide(player, dx, dy, solids)
     just_landed = (not was_on_ground) and on_ground
-
+    if just_landed and parachute_deployed:
+        fall_peak_y = player.top
+        parachute_deployed = False
     if was_on_ground and not on_ground:
         fall_peak_y = player.top
     
@@ -1162,13 +1184,26 @@ while True:
         fall_distance = player.top - fall_peak_y
         SAFE_FALL_DISCTANCE = 250
         if fall_distance > SAFE_FALL_DISCTANCE:
-            damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.1)
-            health -= damage
-            if health <= 0:
-                health = 0
-                game_over = True
-                fell = True
-                dead = False
+            used_parachute = False
+            for i in range(len(inventory)):
+                if inventory[i] is not None:
+                    item = inventory[i]
+                    name = item.get("name") if isinstance(item, dict) else str(item)
+                    if name == "Parachute":
+                        used_parachute = True
+                        if isinstance(item, dict):
+                            item["count"] -=1
+                            if item["count"] <= 0:
+                                inventory[i] = None
+                            break
+            if not used_parachute:            
+                damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.1)
+                health -= damage
+                if health <= 0:
+                    health = 0
+                    game_over = True
+                    fell = True
+                    dead = False
         fall_peak_y = None
     
     if on_ground:
@@ -1235,6 +1270,10 @@ while True:
         COLOR_BY_NAME.get(selected_color_name, (255, 0, 0)),
         pygame.Rect(player.x, player.y - camera_y, player.width, player.height)
     )
+
+    if parachute_deployed and PARACHUTE_ICON:
+        para_img = pygame.transform.scale(PARACHUTE_ICON, (64, 64))
+        screen.blit(para_img, (player.centerx - 32, player.top - camera_y - 50))
 
     for item in world_items:
         draw_rect = pygame.Rect(item["rect"].x, item["rect"].y - camera_y, item["rect"].width, item["rect"].height)
@@ -1308,7 +1347,7 @@ while True:
             "A/<-: move left",
             "D/->: move right",
             "SPACE/W/^: jump",
-            "L SHIFT/R CTRL: dash",
+            "L SHIFT/R CTRL: blink",
             "E: inventory",
             "ESC: pause menu",
         ]

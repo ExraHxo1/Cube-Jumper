@@ -1,0 +1,14 @@
+add moving platforms
+
+add multiplayer:
+pushing
+maybe multi-core
+
+make dist on plats not %
+
+spread out colors more
+
+add revival
+add cyote jumps
+
+make drops drop

@@ -1,8 +1,8 @@
 {
   "show_lvl": true,
-  "show_controls": false,
+  "show_controls": true,
   "show_live_score": true,
-  "selected_color": "Light Blue",
+  "selected_color": "Black",
   "unlocked_colors": [
     "Red",
     "Light Blue",
@@ -13,10 +13,8 @@
     "Grey",
     "Yellow",
     "Orange",
-    "Gold",
     "Purple",
     "Pink",
-    "Brown",
     "Black"
   ],
   "despawn_buffer": 999999
