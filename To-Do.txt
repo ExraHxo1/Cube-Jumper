@@ -12,3 +12,9 @@ add revival
 add cyote jumps
 
 make drops drop
+
+inventory glitch
+
+somehow glitching through the village platforms
+happens right next to houses
+I think that it happens when a platfor top is at the same y as the village plat top

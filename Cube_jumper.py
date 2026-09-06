@@ -219,7 +219,7 @@ inventory = [None] * INVENTORY_SLOTS
 selected_slot = 0
 inv_slots_rects = []
 context_open = False
-VILLAGE_LOOT_POOL = ["Apple", "Meat", "Bandage", "Parachute"]
+VILLAGE_LOOT_POOL = ["Apple", "Meat", "Bandage"]
 context_slot = None
 context_item_name = None
 context_action = None
@@ -860,11 +860,11 @@ while True:
                     item = inventory[context_slot]
                     name = item.get("name") if isinstance(item, dict) else str(item)              
                     if name in ["Meat"]:
-                        food = min(MAX_STAT, food + 10)
+                        food = min(MAX_STAT, food + 20)
                     elif name == "Bandage":
                         health = min(MAX_STAT, health + 35)
                     elif name in ["Apple"]:
-                        food = min(MAX_STAT, food + 5)
+                        food = min(MAX_STAT, food + 10)
                     elif name in ["Water Bottle"]:
                         water = min(MAX_STAT, water + 15)            
                     if isinstance(item, dict):
@@ -1118,7 +1118,7 @@ while True:
         x = random.randint(min_x, max_x)
         platforms.append(pygame.Rect(x, y, w, PLAT_H))
 
-        if random.random() < 0.04:
+        if random.random() < 0.035:
             item_name = "Water Bottle"
             item_icon = ITEM_ICONS.get(item_name)
             item_w, item_h = (32, 32)
@@ -1131,6 +1131,20 @@ while True:
                 "rect": pygame.Rect(item_x, item_y, item_w, item_h),
                 "icon": item_icon
             })
+
+        if random.random() < 0.01:
+                    item_name = "Parachute"
+                    item_icon = ITEM_ICONS.get(item_name)
+                    item_w, item_h = (32, 32)
+                    if item_icon:
+                        item_icon = pygame.transform.scale(item_icon, (32, 32))
+                    item_x = x + (w // 2) - (item_w // 2)
+                    item_y = y - item_h
+                    world_items.append({
+                        "name": item_name,
+                        "rect": pygame.Rect(item_x, item_y, item_w, item_h),
+                        "icon": item_icon
+                    })
 
         highest_plat_y = y
         last_plat_x = x
@@ -1348,6 +1362,7 @@ while True:
             "D/->: move right",
             "SPACE/W/^: jump",
             "L SHIFT/R CTRL: blink",
+            "F: use parachute",
             "E: inventory",
             "ESC: pause menu",
         ]
