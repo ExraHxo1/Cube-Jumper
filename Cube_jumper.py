@@ -1162,7 +1162,7 @@ while True:
         fall_distance = player.top - fall_peak_y
         SAFE_FALL_DISCTANCE = 250
         if fall_distance > SAFE_FALL_DISCTANCE:
-            damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.001)
+            damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.1)
             health -= damage
             if health <= 0:
                 health = 0
