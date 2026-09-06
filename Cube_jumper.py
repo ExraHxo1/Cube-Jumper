@@ -1160,10 +1160,15 @@ while True:
     
     if just_landed and FALL_DEATH_ENABLED and (not game_over) and (fall_peak_y is not None):
         fall_distance = player.top - fall_peak_y
-        if fall_distance >= FALL_DEATH_HEIGHT:
-            game_over = True
-            fell = True
-            dead = False
+        SAFE_FALL_DISCTANCE = 250
+        if fall_distance > SAFE_FALL_DISCTANCE:
+            damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.001)
+            health -= damage
+            if health <= 0:
+                health = 0
+                game_over = True
+                fell = True
+                dead = False
         fall_peak_y = None
     
     if on_ground:
