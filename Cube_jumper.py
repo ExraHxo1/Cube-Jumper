@@ -1,6 +1,8 @@
 import pygame
 print("CUBE JUMPER loading!")
 import sys
+import urllib.parse
+import urllib.request
 import random
 import os
 import json
@@ -8,6 +10,10 @@ def resource_path(*parts):
     base = getattr(sys, "_MEIPASS", os.path.dirname(os.path.abspath(__file__)))
     return os.path.join(base, *parts)
 
+DREAMLO_PUBLIC_KEY = "6a9da3568f40bc1350610a2f"
+DREAMLO_PRIVATE_KEY = "XQFa2ZfCtkq3Xpf81LC_Xgv4DIYtC0-kyXQRxACAQA8A"
+
+online_highscore = []
 SETTINGS_FILE = "settings.json"
 HIGHSCORE_FILE = "highscore.txt"
 DEATH_SCORE_THRESHOLD = 55
@@ -51,6 +57,34 @@ show_lvl = True
 DESPAWN_BUFFER = 100000
 selected_color_name = "Red"
 unlocked_colors = {"Red"}
+
+def fetch_online_highscore():
+    global online_highscore
+    url = f"http://dreamlo.com/lb/{DREAMLO_PUBLIC_KEY}/pipe/10"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "CubeJumper"})
+        with urllib.request.urlopen(req, timeout=3) as response:
+            data = response.read().decode("utf-8").strip()
+            entries = []
+            if data:
+                for line in data.splitlines():
+                    parts = line.split("|")
+                    if len(parts) >= 2:
+                        entries.append((parts[0], int(parts[1])))
+            online_highscore = entries
+    except Exception as e:
+        print(f"Failed to fetch highscores: {e}")
+
+def submit_online_highscore(name, score_val):
+    clean_name = urllib.parse.quote(name[:12])
+    url = f"http://dreamlo.com/lb/{DREAMLO_PRIVATE_KEY}/add/{clean_name}/{score_val}"
+    try:
+        req = urllib.request.Request(url, headers={"User-Agent": "CubeJumper"})
+        with urllib.request.urlopen(req, timeout=3):
+            pass
+    except Exception as e:
+        print(f"Failed to submit score: {e}")
+            
 
 def load_settings():
     global show_controls, show_live_score, selected_color_name, unlocked_colors, show_lvl, DESPAWN_BUFFER
@@ -183,6 +217,7 @@ if os.path.isdir(HOUSE_DIR):
             path = os.path.join(HOUSE_DIR, fname)
             try:
                 img = pygame.image.load(path).convert_alpha()
+                img = pygame.transform.scale(img, (64, 64))
                 HOUSE_IMAGES.append(img)
             except Exception as e:
                 print(f"WARNING: Failed to load {path}: {e}")
@@ -398,16 +433,24 @@ btn_x = WIDTH // 2 - btn_w // 2
 resume_btn = pygame.Rect(btn_x, 260, btn_w, btn_h)
 restart_btn = pygame.Rect(btn_x, 340, btn_w, btn_h)
 settings_btn = pygame.Rect(btn_x, 420, btn_w, btn_h)
+in_highscores = False
+highscores_btn = pygame.Rect(btn_x, 580, btn_w, btn_h)
+hs_back_btn = pygame.Rect(btn_x, 680, btn_w, btn_h)
 customize_btn = pygame.Rect(btn_x, 500, btn_w, btn_h)
-quit_btn = pygame.Rect(btn_x, 580, btn_w, btn_h)
+quit_btn = pygame.Rect(btn_x, 660, btn_w, btn_h)
 toggle_controls_btn = pygame.Rect(btn_x, 300, btn_w, btn_h)
 back_btn = pygame.Rect(btn_x, 620, btn_w, btn_h)
 toggle_lvl_btn = pygame.Rect(btn_x, 460, btn_w, btn_h)
-despawn_input_btn = pygame.Rect(btn_x, 540, btn_w, btn_h)
+despawn_input_btn = pygame.Rect(btn_x, 600, btn_w, btn_h)
 despawn_input_active = False
 despawn_text = str(DESPAWN_BUFFER)
 in_settings = False
 in_customize = False
+entering_name = False
+player_name = ""
+name_submitted = False
+name_input_box = pygame.Rect(WIDTH // 2 - 150, 360, 300, 50)
+submit_btn = pygame.Rect(WIDTH // 2 - 100, 430, 200, 50)
 toggle_live_score_btn = pygame.Rect(btn_x, 380, btn_w, btn_h)
 cust_prev_btn = pygame.Rect(btn_x - 160, 360, 140, 60)
 cust_next_btn = pygame.Rect(btn_x + btn_w + 20, 360, 140, 60)
@@ -470,43 +513,19 @@ GAP_MAX_Y_BASE = 90
 # Town platforms + Houses
 # =========================
 TOWN_SCORE_STEP = 500   
-TOWN_SPAWN_OFFSET = 5       # every ~500 score
-TOWN_PLAT_W = WIDTH            # big platform across the whole screen
+TOWN_SPAWN_OFFSET = 5     
+TOWN_PLAT_W = WIDTH           
 TOWN_PLAT_H = 30
-HOUSES_PER_TOWN = (4, 10)       # random range
+HOUSES_PER_TOWN = (4, 10)   
 
-town_platforms = []            # list[pygame.Rect]
-houses = []                    # list[dict]: {"x","y","surf","w","h"}
+town_platforms = []        
+houses = []                    
 next_town_score = TOWN_SCORE_STEP
-
-def make_house_surface(style: int = 0) -> pygame.Surface:
-    w, h = 120, 110
-    surf = pygame.Surface((w, h), pygame.SRCALPHA)
-
-    # body
-    pygame.draw.rect(surf, (200, 170, 120), pygame.Rect(15, 45, 90, 55), border_radius=6)
-
-    # roof
-    pygame.draw.polygon(surf, (160, 60, 60), [(10, 50), (60, 15), (110, 50)])
-
-    # door
-    pygame.draw.rect(surf, (110, 70, 30), pygame.Rect(52, 65, 16, 35), border_radius=3)
-
-    # windows
-    pygame.draw.rect(surf, (180, 220, 255), pygame.Rect(25, 60, 16, 16), border_radius=3)
-    pygame.draw.rect(surf, (180, 220, 255), pygame.Rect(79, 60, 16, 16), border_radius=3)
-
-    # outline (optional)
-    pygame.draw.rect(surf, (20, 20, 20), pygame.Rect(15, 45, 90, 55), 2, border_radius=6)
-    pygame.draw.polygon(surf, (20, 20, 20), [(10, 50), (60, 15), (110, 50)], 2)
-
-    return surf
-
 
 def spawn_town_at_score(s: int):
     global town_platforms, houses, world_items
 
-    town_top_y = ground.top - (s * 10)  # world Y where this town platform sits
+    town_top_y = ground.top - (s * 10)
     plat = pygame.Rect(0, town_top_y, TOWN_PLAT_W, TOWN_PLAT_H)
     town_platforms.append(plat)
 
@@ -566,7 +585,7 @@ GAP_MIN_Y = GAP_MIN_Y_BASE
 GAP_MAX_Y = GAP_MAX_Y_BASE
 
 LEVEL_SCORE_STEP = 1000
-MAX_LEVEL = 12
+MAX_LEVEL = 24
 
 def get_level_from_score(s: int) -> int:
     return max(1, min(MAX_LEVEL, (s // LEVEL_SCORE_STEP) + 1))
@@ -576,13 +595,13 @@ def apply_difficulty_for_score(s: int):
     level = get_level_from_score(s)
     t = (level - 1) / (MAX_LEVEL - 1)
 
-    PLAT_MIN_W = int(PLAT_MIN_W_BASE - 50 * t)
-    PLAT_MAX_W = int(PLAT_MAX_W_BASE - 50 * t)
+    PLAT_MIN_W = int(PLAT_MIN_W_BASE - 70 * t)
+    PLAT_MAX_W = int(PLAT_MAX_W_BASE - 70 * t)
 
     GAP_MIN_Y = int(GAP_MIN_Y_BASE + 15 * t)
     GAP_MAX_Y = int(GAP_MAX_Y_BASE + 20 * t)
 
-    MAX_PLAT_DX = int(MAX_PLAT_DX_BASE + 80 * t)
+    MAX_PLAT_DX = int(MAX_PLAT_DX_BASE + 100 * t)
 
     PLAT_MIN_W = max(60, PLAT_MIN_W)
     PLAT_MAX_W = max(PLAT_MIN_W + 20, PLAT_MAX_W)
@@ -656,8 +675,9 @@ def reset_survival_timer():
     last_stat_tick = pygame.time.get_ticks()
 
 def restart_game():
-    global player, player_vel_y, on_ground, move_dir, camera_y, last_dash_time, armed, in_customize, food, last_stat_tick, houses, fall_peak_y, last_ground_time
-    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score, world_items, inventory
+    global player, player_vel_y, on_ground, move_dir, camera_y, last_dash_time, armed, in_customize, food, last_stat_tick, houses, fall_peak_y, last_ground_time, player_name,name_submitted, restart_btn
+    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score, world_items, inventory, entering_name, parachute_deployed
+    global inventory_open, context_open
 
     player.x, player.y = 50, 300
     player_vel_y = 0
@@ -684,8 +704,15 @@ def restart_game():
     next_town_score = TOWN_SCORE_STEP
     fall_peak_y = None
     world_items = []
-    inventory[i]
+    inventory= [None] * INVENTORY_SLOTS
+    inventory_open = False
+    context_open = False
     last_ground_time = 0
+    entering_name = False
+    player_name = ""
+    name_submitted = False
+    parachute_deployed = False
+    restart_btn = pygame.Rect(btn_x, 340, btn_w, btn_h)
     build_start_platforms()
 
 # =========================
@@ -762,6 +789,9 @@ while True:
                         set_selected_color(pick)
                 elif cust_back_btn.collidepoint(mx, my):
                     in_customize = False
+            elif in_highscores:
+                if hs_back_btn.collidepoint(mx,my):
+                    in_highscores = False
             else:
                 if resume_btn.collidepoint(mx, my):
                     paused = False
@@ -775,7 +805,11 @@ while True:
                     in_customize = True
                     in_settings = False
                     cust_index = COLOR_NAMES.index(selected_color_name) if selected_color_name in COLOR_NAMES else 0
+                elif highscores_btn.collidepoint(mx, my):
+                    in_highscores = True
+                    fetch_online_highscore()
                 elif quit_btn.collidepoint(mx, my):
+                    quit()
                     pygame.quit()
                     sys.exit()
 
@@ -791,8 +825,24 @@ while True:
                 pygame.quit()
                 sys.exit()
 
+            if entering_name and not name_submitted:
+                if submit_btn.collidepoint(mx, my) and player_name.strip():
+                    submit_online_highscore(player_name.strip(), score)
+                    name_submitted = True
+                    entering_name = False
+
         # Key presses
         if event.type == pygame.KEYDOWN:
+            if game_over and entering_name and not name_submitted:
+                if event.key == pygame.K_BACKSPACE:
+                    player_name = player_name[:-1]
+                elif event.key == pygame.K_RETURN:
+                    if player_name.strip():
+                        submit_online_highscore(player_name.strip(), score)
+                        name_submitted = True
+                        entering_name = False
+                elif len(player_name) < 12 and event.unicode.isalnum():
+                    player_name += event.unicode
             if event.key == pygame.K_f and not on_ground and not parachute_deployed:
                 for i in range(len(inventory)):
                     item = inventory[i]
@@ -862,8 +912,11 @@ while True:
             elif context_open and event.button == 1:
                 if context_use_btn.collidepoint(mx, my):
                     item = inventory[context_slot]
-                    name = item.get("name") if isinstance(item, dict) else str(item)              
-                    if name in ["Meat"]:
+                    name = item.get("name") if isinstance(item, dict) else str(item)        
+                    if name in ["Parachute"]:
+                        food = min(MAX_STAT, food + 10)
+                        water = min(MAX_STAT, water + 5)
+                    elif name in ["Meat"]:
                         food = min(MAX_STAT, food + 20)
                     elif name == "Bandage":
                         health = min(MAX_STAT, health + 35)
@@ -900,7 +953,7 @@ while True:
     # =========================
     if paused:
         screen.fill((135, 206, 235))
-        quit_btn = pygame.Rect(btn_x, 580, btn_w, btn_h)
+        quit_btn = pygame.Rect(btn_x, 660, btn_w, btn_h)
 
         pygame.draw.rect(screen, (100, 200, 100), pygame.Rect(ground.x, ground.y - camera_y, ground.width, ground.height))
 
@@ -978,6 +1031,17 @@ while True:
             select_text = "Selected" if name == selected_color_name else "Select"
             draw_button(screen, cust_select_btn, select_text, mouse_pos, font, disabled=select_disabled)
             draw_button(screen, cust_back_btn, "Back", mouse_pos, font)
+        elif in_highscores:
+            title = big_font.render("GLOBAL HIGHSCORES", True, (255, 255, 255))
+            screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 120))
+            if not online_highscore:
+                loading_txt = font.render("Loading scores or offline...", True, (200, 200, 200))
+                screen.blit(loading_txt, (WIDTH // 2 - loading_txt.get_width() // 2, 280))
+            else:
+                for idx, (h_name, h_score) in enumerate(online_highscore):
+                    entry_txt = font.render(f"{idx + 1}. {h_name:<14} {h_score:>6}", True, (255, 255, 255))
+                    screen.blit(entry_txt, (WIDTH // 2 - 140, 200 + idx *38))
+            draw_button(screen, hs_back_btn, "Back", mouse_pos, font)
         else:
             title = big_font.render("PAUSED", True, (255, 255, 255))
             screen.blit(title, (WIDTH // 2 - title.get_width() // 2, 160))
@@ -985,8 +1049,9 @@ while True:
             draw_button(screen, resume_btn, "Resume", mouse_pos, font)
             draw_button(screen, restart_btn, "Restart", mouse_pos, font)
             draw_button(screen, settings_btn, "Settings", mouse_pos, font)
-            draw_button(screen, quit_btn, "Quit", mouse_pos, font)
             draw_button(screen, customize_btn, "Customization", mouse_pos, font)
+            draw_button(screen, highscores_btn, "Highscores", mouse_pos ,font)
+            draw_button(screen, quit_btn, "Quit", mouse_pos, font)
 
         reset_survival_timer()
         current_w, current_h = window.get_size()
@@ -1001,7 +1066,8 @@ while True:
     # =========================
     if game_over:
         screen.fill((135, 206, 235))
-        quit_btn = pygame.Rect(btn_x, 420, btn_w, btn_h)
+        quit_btn = pygame.Rect(btn_x, 580, btn_w, btn_h)
+        restart_btn = pygame.Rect(btn_x, 500, btn_w, btn_h)
 
         pygame.draw.rect(screen, (100, 200, 100), pygame.Rect(ground.x, ground.y - camera_y, ground.width, ground.height))
 
@@ -1033,9 +1099,22 @@ while True:
         screen.blit(score_line, (WIDTH // 2 - score_line.get_width() // 2, 230))
         screen.blit(hs_line, (WIDTH // 2 - hs_line.get_width() // 2, 265))
 
-        if new_high:
+        if new_high and not entering_name:
             new_line = font.render(f"NEW HIGH SCORE! {high_score}", True, (255, 255, 0))
             screen.blit(new_line, (WIDTH // 2 - new_line.get_width() // 2, 305))
+
+        if entering_name and not name_submitted:
+            prompt = font.render("NEW RECORD! Enter your username:", True, (255, 255, 100))
+            screen.blit(prompt, (WIDTH // 2 - prompt.get_width() // 2, 320))
+            pygame.draw.rect(screen, (50, 50, 50), name_input_box, border_radius=8)
+            pygame.draw.rect(screen, (255, 255, 255), name_input_box, 2, border_radius=8)
+            name_surface = font.render(player_name + "|", True, (255, 255, 255))
+            screen.blit(name_surface, (name_input_box.centerx - name_surface.get_width() // 2, name_input_box.centery - name_surface.get_height() // 2))
+            draw_button(screen, submit_btn, "Submit", mouse_pos, font)
+        elif name_submitted:
+            sub_msg = font.render("Score Submitted!", True, (100, 255, 100))
+            screen.blit(sub_msg, (WIDTH // 2 - sub_msg.get_width() // 2, 325))
+
 
         draw_button(screen, restart_btn, "Restart", mouse_pos, font)
         draw_button(screen, quit_btn, "Quit", mouse_pos, font)
@@ -1083,6 +1162,7 @@ while True:
             high_score = score
             save_high_score(high_score)
             new_high = True
+            entering_name = True
         if score >= ARM_SCORE:
             armed = True
     level = get_level_from_score(score)

@@ -1,6 +1,6 @@
 {
   "show_lvl": true,
-  "show_controls": true,
+  "show_controls": false,
   "show_live_score": true,
   "selected_color": "Light Blue",
   "unlocked_colors": [
