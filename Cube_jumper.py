@@ -429,6 +429,8 @@ jump_power = -12
 gravity = 0.6
 on_ground = False
 move_dir = 1
+last_ground_time = 0
+coyote_time_window = 150
 
 # Score
 score = 0
@@ -456,13 +458,13 @@ platforms = []
 highest_plat_y = 0
 last_plat_x = WIDTH // 2
 
-MAX_PLAT_DX_BASE = 320
+MAX_PLAT_DX_BASE = 180
 EDGE_MARGIN = 20
 PLAT_MIN_W_BASE = 170
 PLAT_MAX_W_BASE = 210
 PLAT_H = 20
-GAP_MIN_Y_BASE = 80
-GAP_MAX_Y_BASE = 100
+GAP_MIN_Y_BASE = 70
+GAP_MAX_Y_BASE = 90
 
 # =========================
 # Town platforms + Houses
@@ -574,13 +576,13 @@ def apply_difficulty_for_score(s: int):
     level = get_level_from_score(s)
     t = (level - 1) / (MAX_LEVEL - 1)
 
-    PLAT_MIN_W = int(PLAT_MIN_W_BASE - 80 * t)
-    PLAT_MAX_W = int(PLAT_MAX_W_BASE - 80 * t)
+    PLAT_MIN_W = int(PLAT_MIN_W_BASE - 50 * t)
+    PLAT_MAX_W = int(PLAT_MAX_W_BASE - 50 * t)
 
-    GAP_MIN_Y = int(GAP_MIN_Y_BASE + 50 * t)
-    GAP_MAX_Y = int(GAP_MAX_Y_BASE + 70 * t)
+    GAP_MIN_Y = int(GAP_MIN_Y_BASE + 15 * t)
+    GAP_MAX_Y = int(GAP_MAX_Y_BASE + 20 * t)
 
-    MAX_PLAT_DX = int(MAX_PLAT_DX_BASE + 100 * t)
+    MAX_PLAT_DX = int(MAX_PLAT_DX_BASE + 80 * t)
 
     PLAT_MIN_W = max(60, PLAT_MIN_W)
     PLAT_MAX_W = max(PLAT_MIN_W + 20, PLAT_MAX_W)
@@ -654,8 +656,8 @@ def reset_survival_timer():
     last_stat_tick = pygame.time.get_ticks()
 
 def restart_game():
-    global player, player_vel_y, on_ground, move_dir, camera_y, last_dash_time, armed, in_customize, food, last_stat_tick, houses, fall_peak_y
-    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score, world_items
+    global player, player_vel_y, on_ground, move_dir, camera_y, last_dash_time, armed, in_customize, food, last_stat_tick, houses, fall_peak_y, last_ground_time
+    global paused, score, best_y, in_settings, game_over, new_high, dead, high_score, live_score, health, water, town_platforms, next_town_score, world_items, inventory
 
     player.x, player.y = 50, 300
     player_vel_y = 0
@@ -682,6 +684,8 @@ def restart_game():
     next_town_score = TOWN_SCORE_STEP
     fall_peak_y = None
     world_items = []
+    inventory[i]
+    last_ground_time = 0
     build_start_platforms()
 
 # =========================
@@ -1166,9 +1170,14 @@ while True:
     # =========================
     # Jump
     # =========================
-    if (not inventory_open) and (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and on_ground:
+    current_time = pygame.time.get_ticks()
+    if on_ground:
+        last_ground_time = current_time
+    can_cyote_jump = on_ground or (current_time - last_ground_time <= coyote_time_window)
+    if (not inventory_open) and (keys[pygame.K_SPACE] or keys[pygame.K_w] or keys[pygame.K_UP]) and can_cyote_jump:
         player_vel_y = jump_power
         on_ground = False
+        last_ground_time = 0
 
     # Gravity
     player_vel_y += gravity
@@ -1198,26 +1207,13 @@ while True:
         fall_distance = player.top - fall_peak_y
         SAFE_FALL_DISCTANCE = 250
         if fall_distance > SAFE_FALL_DISCTANCE:
-            used_parachute = False
-            for i in range(len(inventory)):
-                if inventory[i] is not None:
-                    item = inventory[i]
-                    name = item.get("name") if isinstance(item, dict) else str(item)
-                    if name == "Parachute":
-                        used_parachute = True
-                        if isinstance(item, dict):
-                            item["count"] -=1
-                            if item["count"] <= 0:
-                                inventory[i] = None
-                            break
-            if not used_parachute:            
-                damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.1)
-                health -= damage
-                if health <= 0:
-                    health = 0
-                    game_over = True
-                    fell = True
-                    dead = False
+            damage = int((fall_distance - SAFE_FALL_DISCTANCE) * 0.1)
+            health -= damage
+            if health <= 0:
+                health = 0
+                game_over = True
+                fell = True
+                dead = False
         fall_peak_y = None
     
     if on_ground:
